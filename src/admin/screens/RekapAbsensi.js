@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ScrollView, StyleSheet, View, Alert, ActivityIndicator, Dimensions, Platform } from "react-native";
 import { DataTable, Searchbar, Appbar, Text, Surface, Button, Portal, Modal, Divider, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-// Import bersyarat agar tidak crash di web
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../../services/supabase";
@@ -65,18 +64,18 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
 
   const fetchAbsensi = () => fetchAndDownload("all", false);
 
-  // --- LOGIKA DOWNLOAD YANG SUPPORT WEB & MOBILE ---
   const processDownload = async (dataToExport, rangeName) => {
     if (!dataToExport || dataToExport.length === 0) {
       return Alert.alert("Kosong", "Tidak ada data untuk rentang waktu ini.");
     }
 
-    const header = "Nama Guru,Tanggal,Status\n";
-    const rows = dataToExport.map((item) => `${item.tabel_user?.full_name},${item.tanggal_absen},${item.status}`).join("\n");
-    const csvContent = header + rows;
-    const fileName = `Rekap_${rangeName}_${new Date().getTime()}.csv`;
+    // Menambahkan kolom Token di Header CSV
+    const header = "Nama Guru,Tanggal,Status,Token QR\n";
+    const rows = dataToExport.map((item) => `${item.tabel_user?.full_name},${item.tanggal_absen},${item.status},${item.token_used || "-"}`).join("\n");
 
-    // JIKA DI WEB
+    const csvContent = header + rows;
+    const fileName = `Rekap_Texar_${rangeName}_${new Date().getTime()}.csv`;
+
     if (Platform.OS === "web") {
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -86,9 +85,7 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }
-    // JIKA DI MOBILE (Android/iOS)
-    else {
+    } else {
       try {
         const filePath = FileSystem.cacheDirectory + fileName;
         await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
@@ -138,8 +135,8 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
           <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 50 }} />
         ) : (
           <Surface style={[styles.tableCard, { backgroundColor: theme.surface }]} elevation={2}>
-            <ScrollView horizontal>
-              <DataTable>
+            <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+              <DataTable style={{ width: 520 }}>
                 <DataTable.Header style={{ backgroundColor: theme.headerTable }}>
                   <DataTable.Title style={{ width: 140 }}>
                     <Text style={[styles.columnLabel, { color: theme.primary }]}>NAMA GURU</Text>
@@ -149,6 +146,10 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
                   </DataTable.Title>
                   <DataTable.Title style={{ width: 80 }}>
                     <Text style={[styles.columnLabel, { color: theme.primary }]}>STATUS</Text>
+                  </DataTable.Title>
+                  {/* KOLOM TOKEN BARU */}
+                  <DataTable.Title style={{ width: 120 }}>
+                    <Text style={[styles.columnLabel, { color: theme.primary }]}>TOKEN QR</Text>
                   </DataTable.Title>
                   <DataTable.Title style={{ width: 50 }}>
                     <Text style={[styles.columnLabel, { color: theme.primary }]}>OPSI</Text>
@@ -166,6 +167,12 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
                       </DataTable.Cell>
                       <DataTable.Cell style={{ width: 80 }}>
                         <Text style={{ color: item.status === "Hadir" ? "#4CAF50" : "#F44336", fontWeight: "bold" }}>{item.status}</Text>
+                      </DataTable.Cell>
+                      {/* CELL DATA TOKEN */}
+                      <DataTable.Cell style={{ width: 120 }}>
+                        <Text numberOfLines={1} style={styles.tokenText}>
+                          {item.token_used || "-"}
+                        </Text>
                       </DataTable.Cell>
                       <DataTable.Cell style={{ width: 50 }}>
                         <IconButton
@@ -193,7 +200,6 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
             Pilih Rekap Download
           </Text>
           <Divider style={{ marginBottom: 20 }} />
-
           <View style={styles.grid}>
             <Button mode="contained" style={styles.gridBtn} onPress={() => fetchAndDownload("today", true)} buttonColor={theme.primary} textColor="#fff">
               Rekap Hari Ini
@@ -208,7 +214,6 @@ const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
               Semua Data
             </Button>
           </View>
-
           <Divider style={{ marginVertical: 15 }} />
           <Button mode="outlined" icon="delete-forever" onPress={handleHapusSemua} textColor="#D32F2F" style={{ borderColor: "#D32F2F" }}>
             HAPUS SEMUA DATA
@@ -249,6 +254,7 @@ const styles = StyleSheet.create({
   mainBtn: { marginBottom: 15, borderRadius: 12, paddingVertical: 8 },
   tableCard: { borderRadius: 15, overflow: "hidden" },
   columnLabel: { fontWeight: "bold", fontSize: 11 },
+  tokenText: { fontSize: 11, color: "#757575", fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
   modal: { padding: 25, margin: 20, borderRadius: 25 },
   modalTitle: { fontWeight: "bold", textAlign: "center", marginBottom: 15 },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
