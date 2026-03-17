@@ -9,10 +9,18 @@ import GenerateQR from "./src/admin/screens/GenerateQR";
 import RekapAbsensi from "./src/admin/screens/RekapAbsensi";
 import UserDashboard from "./src/user/screens/UserDashboard";
 import ScannerAbsen from "./src/user/screens/ScannerAbsen";
+import KelolaInformasi from "./src/admin/screens/KelolaInformasi";
+import FormIzin from "./src/user/screens/FormIzin";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [halamanAktif, setHalamanAktif] = useState("Dashboard");
+
+  // Fungsi Login - Memastikan mendarat di Dashboard
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setHalamanAktif("Dashboard");
+  };
 
   // Fungsi Logout
   const handleLogout = () => {
@@ -20,15 +28,9 @@ export default function App() {
     setHalamanAktif("Dashboard");
   };
 
-  // Objek navigasi sederhana untuk Admin
-  const navAdmin = {
-    navigate: (t) => setHalamanAktif(t),
-    goBack: () => setHalamanAktif("Dashboard"),
-  };
-
-  // Objek navigasi sederhana untuk Guru
-  const navUser = {
-    navigate: (t) => setHalamanAktif(t),
+  // Objek navigasi untuk dilempar ke props
+  const navigation = {
+    navigate: (tujuan) => setHalamanAktif(tujuan),
     goBack: () => setHalamanAktif("Dashboard"),
   };
 
@@ -36,23 +38,33 @@ export default function App() {
     <PaperProvider>
       {!user ? (
         /* --- 1. PROSES LOGIN --- */
-        <LoginScreen onLoginSuccess={(data) => setUser(data)} />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
       ) : user.role === "admin" ? (
         /* --- 2. LAYAR ADMIN --- */
         <>
           {halamanAktif === "Dashboard" ? (
-            <DashboardAdmin user={user} onLogout={handleLogout} navigation={navAdmin} />
+            <DashboardAdmin user={user} onLogout={handleLogout} navigation={navigation} />
           ) : halamanAktif === "KelolaGuru" ? (
-            <KelolaGuru navigation={navAdmin} />
+            <KelolaGuru navigation={navigation} />
           ) : halamanAktif === "GenerateQR" ? (
-            <GenerateQR navigation={navAdmin} />
+            <GenerateQR navigation={navigation} />
           ) : halamanAktif === "RekapAbsensi" ? (
-            <RekapAbsensi onBack={() => setHalamanAktif("Dashboard")} />
+            <RekapAbsensi onBack={navigation.goBack} />
+          ) : halamanAktif === "KelolaInformasi" ? (
+            <KelolaInformasi onBack={navigation.goBack} />
           ) : null}
         </>
       ) : (
-        /* --- 3. LAYAR GURU --- */
-        <>{halamanAktif === "Dashboard" ? <UserDashboard user={user} onLogout={handleLogout} navigation={navUser} /> : halamanAktif === "ScannerAbsen" ? <ScannerAbsen user={user} navigation={navUser} /> : null}</>
+        /* --- 3. LAYAR GURU (USER) --- */
+        <>
+          {halamanAktif === "Dashboard" ? (
+            <UserDashboard user={user} onLogout={handleLogout} navigation={navigation} />
+          ) : halamanAktif === "ScannerAbsen" ? (
+            <ScannerAbsen user={user} navigation={navigation} />
+          ) : halamanAktif === "FormIzin" ? (
+            <FormIzin user={user} onBack={navigation.goBack} />
+          ) : null}
+        </>
       )}
     </PaperProvider>
   );

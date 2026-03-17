@@ -48,7 +48,6 @@ const DashboardAdmin = ({ user, onLogout, navigation }) => {
     muatData();
   }, []);
 
-  // Data untuk Grafik
   const chartData = [
     { name: "Hadir", population: stats.hadir, color: "#4CAF50", legendFontColor: "#7F7F7F", legendFontSize: 12 },
     { name: "Izin", population: stats.izin, color: "#FFC107", legendFontColor: "#7F7F7F", legendFontSize: 12 },
@@ -61,7 +60,6 @@ const DashboardAdmin = ({ user, onLogout, navigation }) => {
       <View style={[styles.header, { backgroundColor: lightBlue }]}>
         <View style={styles.headerTop}>
           <Surface style={styles.logoContainer} elevation={2}>
-            {/* <Avatar.Icon size={60} icon="school" style={{ backgroundColor: "#fff" }} color={primaryColor} /> */}
             <Image source={require("../../../assets/logo-texar.png")} style={styles.logo} resizeMode="contain" />
           </Surface>
           <IconButton icon="logout-variant" iconColor="#D32F2F" size={26} onPress={onLogout} />
@@ -80,7 +78,7 @@ const DashboardAdmin = ({ user, onLogout, navigation }) => {
         </View>
       </View>
 
-      {/* Stats Row - 3 Kolom */}
+      {/* Stats Row */}
       <View style={styles.statsRow}>
         <Surface style={styles.statBox} elevation={1}>
           <Text variant="titleLarge" style={{ color: "#4CAF50", fontWeight: "bold" }}>
@@ -102,35 +100,49 @@ const DashboardAdmin = ({ user, onLogout, navigation }) => {
         </Surface>
       </View>
 
-      {/* Menu Grid */}
+      {/* Menu Container dengan Grid yang Benar */}
       <View style={styles.menuContainer}>
         <Text variant="titleMedium" style={styles.menuTitle}>
           MANAJEMEN SISTEM
         </Text>
-        <View style={styles.grid}>
-          <Surface style={styles.menuItem} elevation={2}>
-            <TouchableRipple onPress={() => navigation?.navigate("KelolaGuru")} style={styles.ripple}>
-              <View style={styles.menuInside}>
-                <Avatar.Icon size={50} icon="account-group" style={{ backgroundColor: "#E8EAF6" }} color={primaryColor} />
-                <Text variant="labelLarge" style={styles.menuText}>
-                  Kelola Guru
-                </Text>
-              </View>
-            </TouchableRipple>
-          </Surface>
 
-          <Surface style={styles.menuItem} elevation={2}>
-            <TouchableRipple onPress={() => navigation?.navigate("RekapAbsensi")} style={styles.ripple}>
-              <View style={styles.menuInside}>
-                <Avatar.Icon size={50} icon="file-chart" style={{ backgroundColor: "#F1F8E9" }} color="#388E3C" />
-                <Text variant="labelLarge" style={styles.menuText}>
-                  Rekap Absen
-                </Text>
-              </View>
-            </TouchableRipple>
-          </Surface>
-        </View>
+        {/* Menu 1 */}
+        <Surface style={styles.menuItem} elevation={2}>
+          <TouchableRipple onPress={() => navigation?.navigate("KelolaGuru")} style={styles.ripple}>
+            <View style={styles.menuInside}>
+              <Avatar.Icon size={50} icon="account-group" style={{ backgroundColor: "#E8EAF6" }} color={primaryColor} />
+              <Text variant="labelLarge" style={styles.menuText}>
+                Kelola Guru
+              </Text>
+            </View>
+          </TouchableRipple>
+        </Surface>
 
+        {/* Menu 2 */}
+        <Surface style={styles.menuItem} elevation={2}>
+          <TouchableRipple onPress={() => navigation?.navigate("RekapAbsensi")} style={styles.ripple}>
+            <View style={styles.menuInside}>
+              <Avatar.Icon size={50} icon="file-chart" style={{ backgroundColor: "#F1F8E9" }} color="#388E3C" />
+              <Text variant="labelLarge" style={styles.menuText}>
+                Rekap Absen
+              </Text>
+            </View>
+          </TouchableRipple>
+        </Surface>
+
+        {/* Menu 3 - Otomatis pindah ke baris baru */}
+        <Surface style={styles.menuItem} elevation={2}>
+          <TouchableRipple onPress={() => navigation?.navigate("KelolaInformasi")} style={styles.ripple}>
+            <View style={styles.menuInside}>
+              <Avatar.Icon size={50} icon="bullhorn-variant" style={{ backgroundColor: "#E3F2FD" }} color="#1976D2" />
+              <Text variant="labelLarge" style={styles.menuText}>
+                Buat Informasi
+              </Text>
+            </View>
+          </TouchableRipple>
+        </Surface>
+
+        {/* Menu Full Width */}
         <Surface style={[styles.menuItem, styles.fullWidth, { backgroundColor: primaryColor }]} elevation={4}>
           <TouchableRipple onPress={() => navigation?.navigate("GenerateQR")} style={styles.ripple}>
             <View style={[styles.menuInside, { flexDirection: "row", paddingHorizontal: 20 }]}>
@@ -158,7 +170,7 @@ const DashboardAdmin = ({ user, onLogout, navigation }) => {
         </Surface>
       </View>
 
-      <Text style={styles.version}>v1.0.3 • SMK Unggul Digital</Text>
+      <Text style={styles.version}>v1.0.0 • RPL SMK TEXAR - 2026</Text>
     </ScrollView>
   );
 };
@@ -168,6 +180,7 @@ const styles = StyleSheet.create({
   header: { paddingTop: 50, paddingBottom: 40, paddingHorizontal: 25, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
   headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 15 },
   logoContainer: { borderRadius: 20, padding: 5, backgroundColor: "#fff" },
+  logo: { width: 50, height: 50 },
   textContainer: { marginTop: 5 },
   welcomeText: { color: "#546E7A", marginBottom: -5 },
   adminName: { color: "#1A237E", fontWeight: "bold", fontSize: 24 },
@@ -180,16 +193,21 @@ const styles = StyleSheet.create({
   chartSection: { paddingHorizontal: 25, marginTop: 25 },
   chartCard: { backgroundColor: "#fff", borderRadius: 25, padding: 10, alignItems: "center" },
 
-  menuContainer: { padding: 25, marginTop: 10 },
-  menuTitle: { color: "#90A4AE", fontWeight: "bold", marginBottom: 15, fontSize: 11, letterSpacing: 1.2 },
-  grid: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15 },
-  menuItem: { backgroundColor: "#F8F9FA", width: "47%", borderRadius: 25, overflow: "hidden" },
-  fullWidth: { width: "100%", marginTop: 10 },
-  ripple: { padding: 22, width: "100%" },
-  menuInside: { alignItems: "center", justifyContent: "center" },
+  // Perbaikan menuContainer
+  menuContainer: {
+    padding: 25,
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  menuTitle: { color: "#90A4AE", fontWeight: "bold", marginBottom: 15, fontSize: 11, letterSpacing: 1.2, width: "100%" },
+  menuItem: { backgroundColor: "#F8F9FA", width: "48%", aspectRatio: 1, borderRadius: 25, overflow: "hidden", marginBottom: 15 },
+  fullWidth: { width: "100%", aspectRatio: undefined, height: 90, marginTop: 5 },
+  ripple: { flex: 1, width: "100%" },
+  menuInside: { flex: 1, alignItems: "center", justifyContent: "center" },
   menuText: { marginTop: 12, fontWeight: "bold", color: "#455A64", fontSize: 13 },
   version: { textAlign: "center", color: "#B0BEC5", fontSize: 11, marginVertical: 25 },
-  logo: { width: 80, height: 80, marginBottom: 10, alignSelf: "center" },
 });
 
 export default DashboardAdmin;

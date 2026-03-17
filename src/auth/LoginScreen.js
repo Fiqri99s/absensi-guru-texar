@@ -41,15 +41,26 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
         <TextInput label="Username" value={username} onChangeText={setUsername} mode="outlined" textColor="#03075e" style={styles.input} activeOutlineColor="#2196F3" outlineColor="#E0E0E0" left={<TextInput.Icon icon="account" />} />
 
-        <TextInput label="Password" value={password} onChangeText={setPassword} mode="outlined" textColor="#03075e" secureTextEntry={secureText} style={styles.input} activeOutlineColor="#2196F3" outlineColor="#E0E0E0"
+        <TextInput
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          mode="outlined"
+          textColor="#03075e"
+          secureTextEntry={secureText}
+          style={styles.input}
+          activeOutlineColor="#2196F3"
+          outlineColor="#E0E0E0"
           left={<TextInput.Icon icon="key" />}
           right={<TextInput.Icon icon={secureText ? "eye" : "eye-off"} onPress={() => setSecureText(!secureText)} />}
         />
 
-        <Button mode="contained" onPress={prosesLogin} loading={loading} disabled={loading} style={styles.tombol} contentStyle={{ height: 50 }}>
-          {loading ? "MENGECEK..." : "MASUK"}
+        <Button mode="contained" onPress={prosesLogin} loading={loading} disabled={loading} style={[styles.tombol, { cursor: "pointer" }]} contentStyle={{ height: 50 }} labelStyle={{ color: "white" }}>
+          {loading ? "Checking..." : "MASUK"}
         </Button>
       </Surface>
+
+      <Text style={styles.version}>v1.0.0 • RPL SMK TEXAR - 2026</Text>
     </View>
   );
 };
@@ -61,7 +72,8 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, color: "#757575", marginBottom: 25, letterSpacing: 1 },
   input: { width: "100%", marginBottom: 15, backgroundColor: "white" },
   tombol: { width: "100%", marginTop: 10, borderRadius: 12, backgroundColor: "#2196F3" },
-  logo: { width: 80, height: 80, marginBottom: 10, alignSelf: "center", },
+  logo: { width: 80, height: 80, marginBottom: 10, alignSelf: "center" },
+  version: { textAlign: "center", color: "#B0BEC5", fontSize: 11, marginVertical: 25 },
 });
 
 export default LoginScreen;

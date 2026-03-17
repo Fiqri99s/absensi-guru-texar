@@ -9,6 +9,7 @@ const screenWidth = Dimensions.get("window").width;
 const UserDashboard = ({ user, onLogout, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ hadir: 0, izin: 0, alpa: 0, totalHari: 0 });
+  const [infoTerbaru, setInfoTerbaru] = useState(null);
 
   const primaryColor = "#1976D2";
   const lightBlue = "#E3F2FD";
@@ -32,8 +33,21 @@ const UserDashboard = ({ user, onLogout, navigation }) => {
     }
   };
 
+  const muatInfoTerbaru = async () => {
+    try {
+      const { data, error } = await supabase.from("tabel_informasi").select("*").order("created_at", { ascending: false }).limit(1).single();
+
+      if (!error && data) {
+        setInfoTerbaru(data);
+      }
+    } catch (err) {
+      console.log("Info Error:", err.message);
+    }
+  };
+
   useEffect(() => {
     muatDataUser();
+    muatInfoTerbaru();
   }, []);
 
   const chartData = [
@@ -68,7 +82,7 @@ const UserDashboard = ({ user, onLogout, navigation }) => {
               {user?.full_name || "Nama User"}
             </Text>
             <View style={[styles.roleBadge, { backgroundColor: primaryColor }]}>
-              <Text style={styles.roleText}>NIP: {user?.username || "USER"}</Text>
+              <Text style={styles.roleText}>User: {user?.username || "USER"}</Text>
             </View>
           </View>
 
@@ -102,6 +116,37 @@ const UserDashboard = ({ user, onLogout, navigation }) => {
       </View>
 
       {/* MENU UTAMA */}
+
+      {infoTerbaru && (
+        <View style={{ paddingHorizontal: 25, marginTop: 25, marginBottom: 10 }}>
+          <Surface style={styles.alertBox} elevation={3}>
+            {/* Container Ikon & Label */}
+            <View style={styles.alertHeader}>
+              <Avatar.Icon size={30} icon="alert-decagram" style={styles.iconBackground} color="#E65100" />
+              <Text variant="labelLarge" style={styles.alertLabel}>
+                PEMBERITAHUAN
+              </Text>
+              <IconButton icon="close" size={16} onPress={() => setInfoTerbaru(null)} />
+            </View>
+
+            {/* Isi Informasi */}
+            <View style={styles.alertContent}>
+              <Text variant="titleMedium" style={styles.infoTitle}>
+                {infoTerbaru.judul}
+              </Text>
+              <Text variant="bodySmall" style={styles.infoIsi}>
+                {infoTerbaru.isi}
+              </Text>
+
+              {/* Tanggal terbit */}
+              <View style={styles.dateRow}>
+                <Text style={styles.infoTgl}>Diterbitkan: {new Date(infoTerbaru.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</Text>
+              </View>
+            </View>
+          </Surface>
+        </View>
+      )}
+
       <View style={styles.menuContainer}>
         <Text variant="titleMedium" style={styles.menuTitle}>
           LAYANAN PRESENSI
@@ -119,7 +164,7 @@ const UserDashboard = ({ user, onLogout, navigation }) => {
           </Surface>
 
           <Surface style={styles.menuItem} elevation={2}>
-            <TouchableRipple onPress={() => {}} style={styles.ripple}>
+            <TouchableRipple onPress={() => navigation?.navigate("FormIzin")} style={styles.ripple}>
               <View style={styles.menuInside}>
                 <Avatar.Icon size={50} icon="file-document-edit" style={{ backgroundColor: "#F1F8E9" }} color="#388E3C" />
                 <Text variant="labelLarge" style={styles.menuText}>
@@ -141,7 +186,7 @@ const UserDashboard = ({ user, onLogout, navigation }) => {
         </Surface>
       </View>
 
-      <Text style={styles.version}>v1.0.5 • SMK TEXAR KLARI</Text>
+      <Text style={styles.version}>v1.0.0 • RPL SMK TEXAR - 2026</Text>
     </ScrollView>
   );
 };
@@ -171,6 +216,15 @@ const styles = StyleSheet.create({
   menuText: { marginTop: 12, fontWeight: "bold", color: "#455A64" },
   version: { textAlign: "center", color: "#B0BEC5", fontSize: 11, marginVertical: 25 },
   logo: { width: 45, height: 45 },
+  alertBox: { backgroundColor: "#FFFBEB", borderRadius: 15, borderLeftWidth: 6, borderLeftColor: "#FF9800", overflow: "hidden" },
+  alertHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingTop: 8 },
+  iconBackground: { backgroundColor: "#FFE0B2" },
+  alertLabel: { flex: 1, marginLeft: 12, color: "#E65100", fontWeight: "bold", letterSpacing: 1.5, fontSize: 10 },
+  alertContent: { paddingHorizontal: 20, paddingLeft: 52, paddingBottom: 12, marginTop: -5 },
+  infoTitle: { color: "#000", fontWeight: "bold", marginBottom: 4 },
+  infoIsi: { color: "#444", lineHeight: 18 },
+  dateRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 10 },
+  infoTgl: { fontSize: 9, color: "#999", fontStyle: "italic" },
 });
 
 export default UserDashboard;

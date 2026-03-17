@@ -100,7 +100,7 @@ const RekapAbsensi = ({ onBack }) => {
         <Appbar.Action icon="refresh" color="#fff" onPress={fetchAbsensi} />
       </Appbar.Header>
 
-      <Searchbar placeholder="Cari Nama Siswa..." onChangeText={setSearchQuery} value={searchQuery} style={styles.search} inputStyle={{ color: "#000" }} />
+      <Searchbar placeholder="Cari Nama Guru..." onChangeText={setSearchQuery} value={searchQuery} style={styles.search} inputStyle={{ color: "#000" }} />
 
       {loading ? (
         <ActivityIndicator size="large" color="#1976D2" style={{ marginTop: 50 }} />
