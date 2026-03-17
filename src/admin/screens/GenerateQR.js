@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Alert, Dimensions } from "react-native";
-import { Text, Button, Surface, Card, IconButton } from "react-native-paper";
+import { View, StyleSheet, Dimensions } from "react-native";
+import { Text, Button, Surface, Card, IconButton, Portal, Dialog, Avatar } from "react-native-paper";
 import QRCode from "react-native-qrcode-svg";
 import { supabase } from "../../services/supabase";
 
 const GenerateQR = ({ navigation, isDarkMode }) => {
   const [mode, setMode] = useState("MASUK");
   const [loading, setLoading] = useState(false);
+
+  // State untuk Popup Cakep
+  const [visible, setVisible] = useState(false);
+  const [msg, setMsg] = useState({ title: "", body: "", icon: "check-circle", color: "#4CAF50" });
 
   // Konfigurasi Warna Dinamis
   const bgColor = isDarkMode ? "#121212" : "#F8F9FA";
@@ -28,6 +32,12 @@ const GenerateQR = ({ navigation, isDarkMode }) => {
     setQrValue(`TEXAR_${getHariIni()}_${mode}`);
   }, [mode]);
 
+  // Fungsi untuk memicu Popup
+  const showPopup = (title, body, icon, color) => {
+    setMsg({ title, body, icon, color });
+    setVisible(true);
+  };
+
   const handleSimpanKeSupabase = async () => {
     setLoading(true);
     try {
@@ -42,9 +52,11 @@ const GenerateQR = ({ navigation, isDarkMode }) => {
 
       if (error) throw error;
 
-      Alert.alert("Berhasil!", `Token QR ${mode} telah diperbarui di database.`);
+      // Popup Sukses
+      showPopup("QR Diaktifkan!", `Token untuk sesi ${mode} berhasil diperbarui. Guru sekarang dapat melakukan scan absensi.`, "qrcode-check", "#2E7D32");
     } catch (err) {
-      Alert.alert("Gagal Simpan", err.message);
+      // Popup Gagal
+      showPopup("Waduh, Gagal!", err.message || "Terjadi kesalahan saat menghubungkan ke database.", "alert-circle", "#D32F2F");
     } finally {
       setLoading(false);
     }
@@ -72,7 +84,6 @@ const GenerateQR = ({ navigation, isDarkMode }) => {
           </View>
 
           <View style={styles.qrContainer}>
-            {/* Surface QR selalu putih agar bisa discan kamera */}
             <Surface style={styles.qrSurface} elevation={4}>
               <QRCode value={qrValue} size={220} backgroundColor="white" color="black" />
             </Surface>
@@ -93,6 +104,22 @@ const GenerateQR = ({ navigation, isDarkMode }) => {
       </Card>
 
       <Text style={[styles.footerText, { color: subTextColor }]}>Token akan diperbarui secara otomatis sesuai tanggal hari ini.</Text>
+
+      {/* --- MODAL POPUP CAKEP --- */}
+      <Portal>
+        <Dialog visible={visible} onDismiss={() => setVisible(false)} style={{ borderRadius: 25, backgroundColor: isDarkMode ? "#242424" : "#FFFFFF" }}>
+          <Dialog.Content style={styles.modalContent}>
+            <Avatar.Icon size={70} icon={msg.icon} style={{ backgroundColor: msg.color }} color="white" />
+            <Text style={[styles.modalTitle, { color: textColor }]}>{msg.title}</Text>
+            <Text style={[styles.modalBody, { color: subTextColor }]}>{msg.body}</Text>
+          </Dialog.Content>
+          <Dialog.Actions style={styles.modalActions}>
+            <Button mode="contained" onPress={() => setVisible(false)} buttonColor={msg.color} style={{ borderRadius: 12, paddingHorizontal: 20 }}>
+              MENGERTI
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 };
@@ -109,6 +136,12 @@ const styles = StyleSheet.create({
   tokenHint: { fontSize: 11, marginTop: 5, fontStyle: "italic" },
   actions: { justifyContent: "space-between", padding: 20, marginTop: 10 },
   footerText: { marginTop: 30, fontSize: 12, textAlign: "center", paddingHorizontal: 40 },
+
+  // Styles untuk Modal
+  modalContent: { alignItems: "center", paddingTop: 20 },
+  modalTitle: { marginTop: 15, fontSize: 20, fontWeight: "bold", textAlign: "center" },
+  modalBody: { marginTop: 10, textAlign: "center", fontSize: 14, lineHeight: 20 },
+  modalActions: { justifyContent: "center", paddingBottom: 15 },
 });
 
 export default GenerateQR;
