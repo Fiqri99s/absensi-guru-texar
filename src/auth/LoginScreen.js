@@ -36,6 +36,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
       <Surface style={styles.kartu} elevation={3}>
         <Image source={require("../../assets/logo-texar.png")} style={styles.logo} resizeMode="contain" />
         {/* <Avatar.Icon size={70} icon="lock-check" backgroundColor="#2196F3" style={{ marginBottom: 10 }} /> */}
+        <Text style={styles.judul}>iTexar</Text>
         <Text style={styles.judul}>SISTEM PRESENSI</Text>
         <Text style={styles.sub}>SMK TEXAR KLARI KARAWANG</Text>
 
