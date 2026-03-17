@@ -1,204 +1,140 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, StyleSheet, View, Alert, ActivityIndicator, Platform } from "react-native";
-import { DataTable, IconButton, Searchbar, FAB, Portal, Modal, Button, Text, List, Appbar, Divider } from "react-native-paper";
+import { ScrollView, StyleSheet, View, Alert, ActivityIndicator, Dimensions } from "react-native";
+import { DataTable, Searchbar, Appbar, Text, Surface, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../services/supabase";
 
-const RekapAbsensi = ({ onBack }) => {
+const RekapAbsensi = ({ navigation, onBack, isDarkMode }) => {
   const [loading, setLoading] = useState(true);
   const [dataAbsen, setDataAbsen] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [visibleExport, setVisibleExport] = useState(false);
 
-  const fetchAbsensi = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.from("tabel_kehadiran").select(`id, user_id, tanggal_absen, status, keterangan, tabel_user (full_name)`).order("tanggal_absen", { ascending: false });
-
-      if (error) throw error;
-      setDataAbsen(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+  // --- TEMA DINAMIS ---
+  const theme = {
+    primary: "#1976D2",
+    bg: isDarkMode ? "#121212" : "#F0F4F8",
+    surface: isDarkMode ? "#1E1E1E" : "#FFFFFF",
+    text: isDarkMode ? "#FFFFFF" : "#1A237E",
+    subText: isDarkMode ? "#B0BEC5" : "#546E7A",
+    headerTable: isDarkMode ? "#2C2C2C" : "#E3F2FD",
+    border: isDarkMode ? "#333333" : "#E0E0E0",
   };
 
   useEffect(() => {
     fetchAbsensi();
   }, []);
 
-  const handleExport = (tipe) => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    let filteredData = [];
+  const fetchAbsensi = async () => {
+    setLoading(true);
+    try {
+      // Mengambil data kehadiran beserta nama dari tabel_user
+      const { data, error } = await supabase.from("tabel_kehadiran").select(`*, tabel_user(full_name)`).order("tanggal_absen", { ascending: false });
 
-    if (tipe === "hari") {
-      filteredData = dataAbsen.filter((item) => item.tanggal_absen === todayStr);
-    } else if (tipe === "minggu") {
-      const limit = new Date();
-      limit.setDate(limit.getDate() - 7);
-      filteredData = dataAbsen.filter((item) => new Date(item.tanggal_absen) >= limit);
-    } else if (tipe === "bulan") {
-      const limit = new Date();
-      limit.setMonth(limit.getMonth() - 1);
-      filteredData = dataAbsen.filter((item) => new Date(item.tanggal_absen) >= limit);
-    } else {
-      filteredData = dataAbsen;
-    }
-
-    if (filteredData.length === 0) return Alert.alert("Info", "Data tidak ditemukan untuk periode ini.");
-
-    let csvContent = "Nama,Tanggal,Status,Keterangan\n";
-    filteredData.forEach((row) => {
-      csvContent += `${row.tabel_user?.full_name || row.user_id},${row.tanggal_absen},${row.status},${row.keterangan || "-"}\n`;
-    });
-
-    if (Platform.OS === "web") {
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Laporan_${tipe}_${todayStr}.csv`;
-      link.click();
-    }
-    setVisibleExport(false);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Hapus data absensi ini?")) {
-      try {
-        const { error } = await supabase.from("tabel_kehadiran").delete().eq("id", id);
-        if (error) throw error;
-        fetchAbsensi();
-      } catch (e) {
-        alert(e.message);
-      }
+      if (error) throw error;
+      setDataAbsen(data || []);
+    } catch (e) {
+      console.error("Error fetch:", e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleClearAll = async () => {
-    if (window.confirm("⚠️ PERINGATAN: Hapus SELURUH data absensi secara permanen?")) {
-      try {
-        setLoading(true);
-        const { error } = await supabase.from("tabel_kehadiran").delete().not("id", "is", null);
-        if (error) throw error;
-        fetchAbsensi();
-        setVisibleExport(false);
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
+  const filteredData = dataAbsen.filter((item) => (item.tabel_user?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction color="#fff" onPress={onBack} />
-        <Appbar.Content title="Rekap Absensi" titleStyle={styles.appbarTitle} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Header */}
+      <Appbar.Header style={{ backgroundColor: isDarkMode ? "#1E1E1E" : theme.primary }}>
+        <Appbar.BackAction color="#fff" onPress={() => navigation?.goBack() || onBack()} />
+        <Appbar.Content title="Rekap Absensi" titleStyle={{ color: "#fff", fontWeight: "bold" }} />
         <Appbar.Action icon="refresh" color="#fff" onPress={fetchAbsensi} />
       </Appbar.Header>
 
-      <Searchbar placeholder="Cari Nama Guru..." onChangeText={setSearchQuery} value={searchQuery} style={styles.search} inputStyle={{ color: "#000" }} />
+      <View style={styles.content}>
+        {/* Search Bar Dinamis */}
+        <Searchbar
+          placeholder="Cari Nama Guru..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={[styles.search, { backgroundColor: theme.surface }]}
+          inputStyle={{ color: theme.text }}
+          iconColor={theme.subText}
+          placeholderTextColor={theme.subText}
+        />
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#1976D2" style={{ marginTop: 50 }} />
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-          <View style={styles.tableWrapper}>
-            <DataTable>
-              <DataTable.Header style={styles.tableHeader}>
-                <DataTable.Title style={styles.colNama}>
-                  <Text style={styles.headerText}>Nama</Text>
-                </DataTable.Title>
-                <DataTable.Title style={styles.colTgl}>
-                  <Text style={styles.headerText}>Tanggal</Text>
-                </DataTable.Title>
-                <DataTable.Title style={styles.colStatus}>
-                  <Text style={styles.headerText}>Status</Text>
-                </DataTable.Title>
-                <DataTable.Title numeric style={styles.colAksi}>
-                  <Text style={styles.headerText}>Aksi</Text>
-                </DataTable.Title>
-              </DataTable.Header>
-
-              {dataAbsen
-                .filter((item) => (item.tabel_user?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((item) => (
-                  <DataTable.Row key={item.id}>
-                    <DataTable.Cell style={styles.colNama}>
-                      <Text style={styles.textDark}>{item.tabel_user?.full_name || item.user_id}</Text>
-                    </DataTable.Cell>
-                    <DataTable.Cell style={styles.colTgl}>
-                      <Text style={styles.textDark}>{item.tanggal_absen}</Text>
-                    </DataTable.Cell>
-                    <DataTable.Cell style={styles.colStatus}>
-                      <Text style={[styles.textDark, { fontWeight: "bold" }]}>{item.status}</Text>
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.colAksi}>
-                      <IconButton icon="trash-can" size={20} iconColor="#D32F2F" onPress={() => handleDelete(item.id)} />
-                    </DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-            </DataTable>
+        {loading ? (
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={{ color: theme.subText, marginTop: 10 }}>Memuat Data...</Text>
           </View>
-        </ScrollView>
-      )}
+        ) : (
+          <Surface style={[styles.tableCard, { backgroundColor: theme.surface }]} elevation={2}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+              <View>
+                <DataTable>
+                  {/* Header Tabel */}
+                  <DataTable.Header style={[styles.tableHeader, { backgroundColor: theme.headerTable }]}>
+                    <DataTable.Title style={{ width: 150 }}>
+                      <Text style={[styles.columnLabel, { color: theme.primary }]}>NAMA GURU</Text>
+                    </DataTable.Title>
+                    <DataTable.Title style={{ width: 110 }}>
+                      <Text style={[styles.columnLabel, { color: theme.primary }]}>TANGGAL</Text>
+                    </DataTable.Title>
+                    <DataTable.Title style={{ width: 90 }}>
+                      <Text style={[styles.columnLabel, { color: theme.primary }]}>STATUS</Text>
+                    </DataTable.Title>
+                  </DataTable.Header>
 
-      <FAB icon="file-chart" label="Menu Laporan" style={styles.fab} color="#fff" onPress={() => setVisibleExport(true)} />
-
-      <Portal>
-        <Modal visible={visibleExport} onDismiss={() => setVisibleExport(false)} contentContainerStyle={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Opsi Laporan & Data</Text>
-            <IconButton icon="close" size={20} onPress={() => setVisibleExport(false)} />
-          </View>
-
-          <ScrollView>
-            <Text style={styles.sectionLabel}>UNDUH LAPORAN (CSV)</Text>
-            <List.Item title="Hari Ini" left={(p) => <List.Icon {...p} icon="calendar-today" color="#1976D2" />} onPress={() => handleExport("hari")} />
-            <List.Item title="Minggu Ini" left={(p) => <List.Icon {...p} icon="calendar-week" color="#1976D2" />} onPress={() => handleExport("minggu")} />
-            <List.Item title="Bulan Ini" left={(p) => <List.Icon {...p} icon="calendar-month" color="#1976D2" />} onPress={() => handleExport("bulan")} />
-            <List.Item title="Semua Periode" left={(p) => <List.Icon {...p} icon="database-export" color="#1976D2" />} onPress={() => handleExport("semua")} />
-
-            <Divider style={styles.modalDivider} />
-
-            <Text style={[styles.sectionLabel, { color: "#D32F2F" }]}>TINDAKAN BERBAHAYA</Text>
-            <List.Item title="Hapus Semua Data" titleStyle={{ color: "#D32F2F", fontWeight: "bold" }} left={(p) => <List.Icon {...p} icon="delete-forever" color="#D32F2F" />} onPress={handleClearAll} />
-          </ScrollView>
-
-          <Button mode="contained" onPress={() => setVisibleExport(false)} style={styles.closeBtn} buttonColor="#1976D2">
-            Selesai
-          </Button>
-        </Modal>
-      </Portal>
+                  {/* Body Tabel */}
+                  <ScrollView style={{ maxHeight: 450 }}>
+                    {filteredData.length === 0 ? (
+                      <Text style={[styles.emptyText, { color: theme.subText }]}>Data tidak ditemukan</Text>
+                    ) : (
+                      filteredData.map((item) => (
+                        <DataTable.Row key={item.id} style={{ borderBottomColor: theme.border }}>
+                          <DataTable.Cell style={{ width: 150 }}>
+                            <Text style={{ color: theme.text }}>{item.tabel_user?.full_name || "Guru"}</Text>
+                          </DataTable.Cell>
+                          <DataTable.Cell style={{ width: 110 }}>
+                            <Text style={{ color: theme.text }}>{item.tanggal_absen}</Text>
+                          </DataTable.Cell>
+                          <DataTable.Cell style={{ width: 90 }}>
+                            <View style={[styles.statusBadge, { backgroundColor: item.status === "Hadir" ? "#E8F5E9" : "#FFEBEE" }]}>
+                              <Text
+                                style={{
+                                  color: item.status === "Hadir" ? "#2E7D32" : "#C62828",
+                                  fontWeight: "bold",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {item.status}
+                              </Text>
+                            </View>
+                          </DataTable.Cell>
+                        </DataTable.Row>
+                      ))
+                    )}
+                  </ScrollView>
+                </DataTable>
+              </View>
+            </ScrollView>
+          </Surface>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F4F8" },
-  appbar: { backgroundColor: "#1976D2" },
-  appbarTitle: { color: "#fff", fontWeight: "bold" },
-  search: { margin: 15, elevation: 4, backgroundColor: "#fff", borderRadius: 10 },
-  tableWrapper: { backgroundColor: "#fff", marginHorizontal: 10, borderRadius: 8, elevation: 3, marginBottom: 120 },
-  tableHeader: { backgroundColor: "#E3F2FD" },
-  headerText: { fontWeight: "bold", color: "#1976D2" },
-  textDark: { color: "#333" },
-  colNama: { width: 140 },
-  colTgl: { width: 100 },
-  colStatus: { width: 80 },
-  colAksi: { width: 60 },
-  fab: { position: "absolute", right: 16, bottom: 20, backgroundColor: "#1976D2" },
-
-  // Gaya Modal yang dipercantik
-  modal: { backgroundColor: "white", padding: 20, margin: 20, borderRadius: 15, maxHeight: "80%" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1976D2" },
-  sectionLabel: { fontSize: 12, fontWeight: "bold", color: "#777", marginTop: 10, marginLeft: 15 },
-  modalDivider: { marginVertical: 15 },
-  closeBtn: { marginTop: 20, borderRadius: 8 },
+  container: { flex: 1 },
+  content: { padding: 15, flex: 1 },
+  search: { marginBottom: 15, borderRadius: 12, elevation: 2 },
+  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  tableCard: { borderRadius: 15, overflow: "hidden", paddingBottom: 10 },
+  tableHeader: { borderBottomWidth: 1, borderBottomColor: "rgba(0,0,0,0.05)" },
+  columnLabel: { fontWeight: "bold", fontSize: 12 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignItems: "center" },
+  emptyText: { textAlign: "center", padding: 20, fontStyle: "italic" },
 });
 
 export default RekapAbsensi;

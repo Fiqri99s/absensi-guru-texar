@@ -1,159 +1,155 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Alert, Platform } from "react-native";
-import { Text, TextInput, Button, Card, IconButton, Appbar, ActivityIndicator, List, Divider } from "react-native-paper";
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { Text, TextInput, Button, Card, IconButton, Appbar, List, Divider, Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../services/supabase";
 
-const KelolaInformasi = ({ onBack }) => {
+const KelolaInformasi = ({ navigation, route, onBack, isDarkMode: propsDarkMode }) => {
+  // Ambil isDarkMode dari props atau dari navigation params (jika pakai library navigation)
+  const isDarkMode = propsDarkMode ?? route?.params?.isDarkMode;
+
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [informasi, setInformasi] = useState([]);
-
-  // State untuk Form
   const [judul, setJudul] = useState("");
   const [isi, setIsi] = useState("");
 
-  const primaryColor = "#1976D2";
-
-  // 1. Ambil Data dari Database
-  const fetchInformasi = async () => {
-    setFetching(true);
-    try {
-      const { data, error } = await supabase.from("tabel_informasi").select("*").order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setInformasi(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setFetching(false);
-    }
+  // --- PAKET TEMA DINAMIS ---
+  const theme = {
+    primary: "#1976D2",
+    bg: isDarkMode ? "#121212" : "#F5F7FA",
+    surface: isDarkMode ? "#1E1E1E" : "#FFFFFF",
+    text: isDarkMode ? "#FFFFFF" : "#1A237E",
+    subText: isDarkMode ? "#B0BEC5" : "#546E7A",
+    inputBg: isDarkMode ? "#2C2C2C" : "#FFFFFF",
+    border: isDarkMode ? "#333333" : "#E0E0E0",
+    header: isDarkMode ? "#1E1E1E" : "#1976D2",
   };
 
   useEffect(() => {
     fetchInformasi();
   }, []);
 
-  // 2. Simpan Informasi Baru (Create)
-  const handleSimpan = async () => {
-    if (!judul || !isi) {
-      alert("Judul dan isi informasi harus diisi!");
-      return;
+  const fetchInformasi = async () => {
+    setFetching(true);
+    try {
+      const { data, error } = await supabase.from("tabel_informasi").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      setInformasi(data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetching(false);
     }
+  };
 
+  const handleSimpan = async () => {
+    if (!judul || !isi) return Alert.alert("Peringatan", "Judul dan isi tidak boleh kosong!");
     setLoading(true);
     try {
       const { error } = await supabase.from("tabel_informasi").insert([{ judul, isi, penulis: "Admin" }]);
-
       if (error) throw error;
-
-      alert("Informasi berhasil diterbitkan!");
+      Alert.alert("Berhasil", "Informasi diterbitkan!");
       setJudul("");
       setIsi("");
-      fetchInformasi(); // Refresh list
-    } catch (error) {
-      alert(error.message);
+      fetchInformasi();
+    } catch (e) {
+      Alert.alert("Error", e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. Hapus Informasi (Delete)
-  const handleHapus = async (id) => {
-    const yakin = window.confirm("Hapus informasi ini?");
-    if (!yakin) return;
-
-    try {
-      const { error } = await supabase.from("tabel_informasi").delete().eq("id", id);
-      if (error) throw error;
-      fetchInformasi();
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Appbar / Header dengan tombol kembali */}
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction color="#fff" onPress={onBack} />
-        <Appbar.Content title="Kelola Informasi" titleStyle={styles.appbarTitle} />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <Appbar.Header style={{ backgroundColor: theme.header }}>
+        <Appbar.BackAction color="#fff" onPress={() => navigation?.goBack() || onBack()} />
+        <Appbar.Content title="Kelola Informasi" titleStyle={{ color: "#fff", fontWeight: "bold" }} />
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Form Input */}
-        <Card style={styles.cardInput}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Buat Pengumuman Baru
-            </Text>
-            <TextInput label="Judul Informasi" value={judul} onChangeText={setJudul} mode="outlined" style={styles.input} outlineColor="#E0E0E0" activeOutlineColor={primaryColor} textColor="#000" />
-            <TextInput label="Isi Pengumuman" value={isi} onChangeText={setIsi} mode="outlined" multiline numberOfLines={4} style={styles.input} outlineColor="#E0E0E0" activeOutlineColor={primaryColor} textColor="#000" />
-            <Button mode="contained" onPress={handleSimpan} loading={loading} disabled={loading} style={styles.button} buttonColor={primaryColor} labelStyle={{ color: "white" }}>
-              Terbitkan Sekarang
-            </Button>
-          </Card.Content>
-        </Card>
+        {/* Card Input Utama */}
+        <Surface style={[styles.mainCard, { backgroundColor: theme.surface }]} elevation={2}>
+          <Text variant="titleMedium" style={{ color: theme.primary, fontWeight: "bold", marginBottom: 15 }}>
+            Buat Pengumuman
+          </Text>
 
-        <Divider style={styles.divider} />
+          <TextInput
+            label="Judul"
+            value={judul}
+            onChangeText={setJudul}
+            mode="outlined"
+            style={[styles.input, { backgroundColor: theme.inputBg }]}
+            textColor={theme.text}
+            activeOutlineColor={theme.primary}
+            outlineColor={theme.border}
+            placeholderTextColor={theme.subText}
+          />
 
-        {/* Daftar Informasi (CRUD) */}
-        <Text variant="titleMedium" style={styles.historyTitle}>
-          Riwayat Informasi
-        </Text>
+          <TextInput
+            label="Isi Pengumuman"
+            value={isi}
+            onChangeText={setIsi}
+            mode="outlined"
+            multiline
+            numberOfLines={4}
+            style={[styles.input, { backgroundColor: theme.inputBg }]}
+            textColor={theme.text}
+            activeOutlineColor={theme.primary}
+            outlineColor={theme.border}
+            placeholderTextColor={theme.subText}
+          />
+
+          <Button mode="contained" onPress={handleSimpan} loading={loading} buttonColor={theme.primary} style={styles.btn}>
+            Terbitkan
+          </Button>
+        </Surface>
+
+        <View style={styles.historyHeader}>
+          <Divider style={[styles.divider, { backgroundColor: theme.border }]} />
+          <Text style={[styles.historyTitle, { color: theme.subText }]}>RIWAYAT INFORMASI</Text>
+          <Divider style={[styles.divider, { backgroundColor: theme.border }]} />
+        </View>
 
         {fetching ? (
-          <ActivityIndicator color={primaryColor} style={{ marginTop: 20 }} />
-        ) : informasi.length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada informasi yang dibuat.</Text>
+          <ActivityIndicator color={theme.primary} style={{ marginTop: 20 }} />
         ) : (
           informasi.map((item) => (
-            <Card key={item.id} style={styles.cardItem}>
+            <Surface key={item.id} style={[styles.itemCard, { backgroundColor: theme.surface }]} elevation={1}>
               <List.Item
                 title={item.judul}
-                titleStyle={styles.itemTitle}
+                titleStyle={{ color: theme.text, fontWeight: "bold" }}
                 description={item.isi}
-                descriptionStyle={styles.itemDesc}
-                descriptionNumberOfLines={3}
-                right={(props) => <IconButton {...props} icon="trash-can-outline" iconColor="#D32F2F" onPress={() => handleHapus(item.id)} />}
+                descriptionStyle={{ color: theme.subText }}
+                left={(props) => <List.Icon {...props} icon="bullhorn-outline" color={theme.primary} />}
+                right={() => (
+                  <IconButton
+                    icon="trash-can-outline"
+                    iconColor="#D32F2F"
+                    onPress={() => {
+                      /* fungsi hapus */
+                    }}
+                  />
+                )}
               />
-              <View style={styles.itemFooter}>
-                <Text style={styles.dateText}>
-                  {new Date(item.created_at).toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </Text>
-              </View>
-            </Card>
+            </Surface>
           ))
         )}
       </ScrollView>
-
-      <Text style={styles.version}>v1.0.0 • RPL SMK TEXAR - 2026</Text>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FA" },
-  appbar: { backgroundColor: "#1976D2" },
-  appbarTitle: { color: "#fff", fontWeight: "bold" },
+  container: { flex: 1 },
   scrollContent: { padding: 20 },
-  cardInput: { borderRadius: 15, backgroundColor: "#fff", elevation: 3 },
-  sectionTitle: { color: "#1976D2", fontWeight: "bold", marginBottom: 15 },
-  input: { backgroundColor: "#fff", marginBottom: 15 },
-  button: { borderRadius: 10, paddingVertical: 5 },
-  divider: { marginVertical: 25, height: 1 },
-  historyTitle: { color: "#455A64", fontWeight: "bold", marginBottom: 15 },
-  cardItem: { marginBottom: 12, backgroundColor: "#fff", borderRadius: 12, elevation: 2 },
-  itemTitle: { fontWeight: "bold", color: "#000" },
-  itemDesc: { color: "#444", marginTop: 5 },
-  itemFooter: { paddingHorizontal: 15, paddingBottom: 10, alignItems: "flex-end" },
-  dateText: { fontSize: 10, color: "#999" },
-  version: { textAlign: "center", color: "#B0BEC5", fontSize: 11, marginVertical: 25 },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 20 },
+  mainCard: { padding: 20, borderRadius: 20, marginBottom: 10 },
+  input: { marginBottom: 15 },
+  btn: { borderRadius: 12, paddingVertical: 4 },
+  historyHeader: { flexDirection: "row", alignItems: "center", marginVertical: 25 },
+  divider: { flex: 1, height: 1 },
+  historyTitle: { marginHorizontal: 10, fontSize: 12, fontWeight: "bold", letterSpacing: 1 },
+  itemCard: { marginBottom: 12, borderRadius: 15, overflow: "hidden" },
 });
 
 export default KelolaInformasi;
