@@ -1,141 +1,204 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, Platform } from "react-native";
-import { DataTable, Searchbar, Button, IconButton, Text, Surface, ActivityIndicator } from "react-native-paper";
+import React, { useState, useEffect } from "react";
+import { ScrollView, StyleSheet, View, Alert, ActivityIndicator, Platform } from "react-native";
+import { DataTable, IconButton, Searchbar, FAB, Portal, Modal, Button, Text, List, Appbar, Divider } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../services/supabase";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
 
-const RekapAbsensi = () => {
-  const [dataAbsen, setDataAbsen] = useState([]);
+const RekapAbsensi = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [dataAbsen, setDataAbsen] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleExport, setVisibleExport] = useState(false);
 
-  // 1. Fetch Data (JOIN dengan tabel_user untuk ambil nama)
-  const fetchRekap = async () => {
+  const fetchAbsensi = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("tabel_kehadiran")
-        .select(
-          `
-          id,
-          user_id,
-          waktu_masuk,
-          tanggal_absen,
-          status,
-          keterangan,
-          tabel_user (full_name)
-        `,
-        )
-        .order("tanggal_absen", { ascending: false });
+      const { data, error } = await supabase.from("tabel_kehadiran").select(`id, user_id, tanggal_absen, status, keterangan, tabel_user (full_name)`).order("tanggal_absen", { ascending: false });
 
       if (error) throw error;
-      setDataAbsen(data);
-    } catch (err) {
-      Alert.alert("Error", err.message);
+      setDataAbsen(data || []);
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRekap();
+    fetchAbsensi();
   }, []);
 
-  // 2. Fungsi Hapus (CRUD - Delete)
-  const hapusData = (id) => {
-    Alert.alert("Konfirmasi", "Hapus data absensi ini?", [
-      { text: "Batal" },
-      {
-        text: "Hapus",
-        onPress: async () => {
-          const { error } = await supabase.from("tabel_kehadiran").delete().eq("id", id);
-          if (!error) fetchRekap();
-        },
-      },
-    ]);
-  };
+  const handleExport = (tipe) => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    let filteredData = [];
 
-  // 3. Export ke CSV
-  const exportData = async () => {
-    if (dataAbsen.length === 0) return;
+    if (tipe === "hari") {
+      filteredData = dataAbsen.filter((item) => item.tanggal_absen === todayStr);
+    } else if (tipe === "minggu") {
+      const limit = new Date();
+      limit.setDate(limit.getDate() - 7);
+      filteredData = dataAbsen.filter((item) => new Date(item.tanggal_absen) >= limit);
+    } else if (tipe === "bulan") {
+      const limit = new Date();
+      limit.setMonth(limit.getMonth() - 1);
+      filteredData = dataAbsen.filter((item) => new Date(item.tanggal_absen) >= limit);
+    } else {
+      filteredData = dataAbsen;
+    }
 
-    // Susun header dan baris CSV
-    let csvContent = "Nama,Tanggal,Jam,Status,Keterangan\n";
-    dataAbsen.forEach((item) => {
-      const nama = item.tabel_user?.full_name || "Tanpa Nama";
-      const jam = item.waktu_masuk ? new Date(item.waktu_masuk).toLocaleTimeString() : "-";
-      csvContent += `${nama},${item.tanggal_absen},${jam},${item.status},${item.keterangan}\n`;
+    if (filteredData.length === 0) return Alert.alert("Info", "Data tidak ditemukan untuk periode ini.");
+
+    let csvContent = "Nama,Tanggal,Status,Keterangan\n";
+    filteredData.forEach((row) => {
+      csvContent += `${row.tabel_user?.full_name || row.user_id},${row.tanggal_absen},${row.status},${row.keterangan || "-"}\n`;
     });
 
     if (Platform.OS === "web") {
-      // Export untuk Browser
-      const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-      window.open(encodedUri);
-    } else {
-      // Export untuk Android/iOS
-      const fileUri = FileSystem.documentDirectory + "Rekap_Absensi_SMK_Texar.csv";
-      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-      await Sharing.shareAsync(fileUri);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Laporan_${tipe}_${todayStr}.csv`;
+      link.click();
+    }
+    setVisibleExport(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Hapus data absensi ini?")) {
+      try {
+        const { error } = await supabase.from("tabel_kehadiran").delete().eq("id", id);
+        if (error) throw error;
+        fetchAbsensi();
+      } catch (e) {
+        alert(e.message);
+      }
     }
   };
 
-  const filteredData = dataAbsen.filter((item) => item.tabel_user?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const handleClearAll = async () => {
+    if (window.confirm("⚠️ PERINGATAN: Hapus SELURUH data absensi secara permanen?")) {
+      try {
+        setLoading(true);
+        const { error } = await supabase.from("tabel_kehadiran").delete().not("id", "is", null);
+        if (error) throw error;
+        fetchAbsensi();
+        setVisibleExport(false);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <Surface style={styles.header} elevation={1}>
-        <Text variant="headlineSmall" style={styles.title}>
-          Rekap Absensi
-        </Text>
-        <Button icon="microsoft-excel" mode="contained" onPress={exportData} buttonColor="#2E7D32">
-          Export CSV
-        </Button>
-      </Surface>
+    <SafeAreaView style={styles.container}>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.BackAction color="#fff" onPress={onBack} />
+        <Appbar.Content title="Rekap Absensi" titleStyle={styles.appbarTitle} />
+        <Appbar.Action icon="refresh" color="#fff" onPress={fetchAbsensi} />
+      </Appbar.Header>
 
-      <Searchbar placeholder="Cari nama guru..." onChangeText={setSearch} value={search} style={styles.search} />
+      <Searchbar placeholder="Cari Nama Siswa..." onChangeText={setSearchQuery} value={searchQuery} style={styles.search} inputStyle={{ color: "#000" }} />
 
-      <ScrollView horizontal>
-        <View>
-          <DataTable style={styles.table}>
-            <DataTable.Header style={styles.tableHeader}>
-              <DataTable.Title style={{ width: 150 }}>Nama Guru</DataTable.Title>
-              <DataTable.Title style={{ width: 100 }}>Tanggal</DataTable.Title>
-              <DataTable.Title style={{ width: 80 }}>Status</DataTable.Title>
-              <DataTable.Title style={{ width: 100 }}>Aksi</DataTable.Title>
-            </DataTable.Header>
+      {loading ? (
+        <ActivityIndicator size="large" color="#1976D2" style={{ marginTop: 50 }} />
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <View style={styles.tableWrapper}>
+            <DataTable>
+              <DataTable.Header style={styles.tableHeader}>
+                <DataTable.Title style={styles.colNama}>
+                  <Text style={styles.headerText}>Nama</Text>
+                </DataTable.Title>
+                <DataTable.Title style={styles.colTgl}>
+                  <Text style={styles.headerText}>Tanggal</Text>
+                </DataTable.Title>
+                <DataTable.Title style={styles.colStatus}>
+                  <Text style={styles.headerText}>Status</Text>
+                </DataTable.Title>
+                <DataTable.Title numeric style={styles.colAksi}>
+                  <Text style={styles.headerText}>Aksi</Text>
+                </DataTable.Title>
+              </DataTable.Header>
 
-            {loading ? (
-              <ActivityIndicator style={{ marginTop: 20 }} />
-            ) : (
-              filteredData.map((item) => (
-                <DataTable.Row key={item.id}>
-                  <DataTable.Cell style={{ width: 150 }}>{item.tabel_user?.full_name}</DataTable.Cell>
-                  <DataTable.Cell style={{ width: 100 }}>{item.tanggal_absen}</DataTable.Cell>
-                  <DataTable.Cell style={{ width: 80 }}>
-                    <Text style={{ color: item.status === "Hadir" ? "green" : "red" }}>{item.status}</Text>
-                  </DataTable.Cell>
-                  <DataTable.Cell style={{ width: 100 }}>
-                    <IconButton icon="pencil" size={18} onPress={() => {}} />
-                    <IconButton icon="trash-can" iconColor="red" size={18} onPress={() => hapusData(item.id)} />
-                  </DataTable.Cell>
-                </DataTable.Row>
-              ))
-            )}
-          </DataTable>
-        </View>
-      </ScrollView>
-    </View>
+              {dataAbsen
+                .filter((item) => (item.tabel_user?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((item) => (
+                  <DataTable.Row key={item.id}>
+                    <DataTable.Cell style={styles.colNama}>
+                      <Text style={styles.textDark}>{item.tabel_user?.full_name || item.user_id}</Text>
+                    </DataTable.Cell>
+                    <DataTable.Cell style={styles.colTgl}>
+                      <Text style={styles.textDark}>{item.tanggal_absen}</Text>
+                    </DataTable.Cell>
+                    <DataTable.Cell style={styles.colStatus}>
+                      <Text style={[styles.textDark, { fontWeight: "bold" }]}>{item.status}</Text>
+                    </DataTable.Cell>
+                    <DataTable.Cell numeric style={styles.colAksi}>
+                      <IconButton icon="trash-can" size={20} iconColor="#D32F2F" onPress={() => handleDelete(item.id)} />
+                    </DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+            </DataTable>
+          </View>
+        </ScrollView>
+      )}
+
+      <FAB icon="file-chart" label="Menu Laporan" style={styles.fab} color="#fff" onPress={() => setVisibleExport(true)} />
+
+      <Portal>
+        <Modal visible={visibleExport} onDismiss={() => setVisibleExport(false)} contentContainerStyle={styles.modal}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Opsi Laporan & Data</Text>
+            <IconButton icon="close" size={20} onPress={() => setVisibleExport(false)} />
+          </View>
+
+          <ScrollView>
+            <Text style={styles.sectionLabel}>UNDUH LAPORAN (CSV)</Text>
+            <List.Item title="Hari Ini" left={(p) => <List.Icon {...p} icon="calendar-today" color="#1976D2" />} onPress={() => handleExport("hari")} />
+            <List.Item title="Minggu Ini" left={(p) => <List.Icon {...p} icon="calendar-week" color="#1976D2" />} onPress={() => handleExport("minggu")} />
+            <List.Item title="Bulan Ini" left={(p) => <List.Icon {...p} icon="calendar-month" color="#1976D2" />} onPress={() => handleExport("bulan")} />
+            <List.Item title="Semua Periode" left={(p) => <List.Icon {...p} icon="database-export" color="#1976D2" />} onPress={() => handleExport("semua")} />
+
+            <Divider style={styles.modalDivider} />
+
+            <Text style={[styles.sectionLabel, { color: "#D32F2F" }]}>TINDAKAN BERBAHAYA</Text>
+            <List.Item title="Hapus Semua Data" titleStyle={{ color: "#D32F2F", fontWeight: "bold" }} left={(p) => <List.Icon {...p} icon="delete-forever" color="#D32F2F" />} onPress={handleClearAll} />
+          </ScrollView>
+
+          <Button mode="contained" onPress={() => setVisibleExport(false)} style={styles.closeBtn} buttonColor="#1976D2">
+            Selesai
+          </Button>
+        </Modal>
+      </Portal>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  header: { padding: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fff" },
-  title: { fontWeight: "bold", color: "#1976D2" },
-  search: { margin: 15, elevation: 1, backgroundColor: "#fff" },
-  table: { backgroundColor: "#fff", minWidth: 450 },
-  tableHeader: { backgroundColor: "#f0f0f0" },
+  container: { flex: 1, backgroundColor: "#F0F4F8" },
+  appbar: { backgroundColor: "#1976D2" },
+  appbarTitle: { color: "#fff", fontWeight: "bold" },
+  search: { margin: 15, elevation: 4, backgroundColor: "#fff", borderRadius: 10 },
+  tableWrapper: { backgroundColor: "#fff", marginHorizontal: 10, borderRadius: 8, elevation: 3, marginBottom: 120 },
+  tableHeader: { backgroundColor: "#E3F2FD" },
+  headerText: { fontWeight: "bold", color: "#1976D2" },
+  textDark: { color: "#333" },
+  colNama: { width: 140 },
+  colTgl: { width: 100 },
+  colStatus: { width: 80 },
+  colAksi: { width: 60 },
+  fab: { position: "absolute", right: 16, bottom: 20, backgroundColor: "#1976D2" },
+
+  // Gaya Modal yang dipercantik
+  modal: { backgroundColor: "white", padding: 20, margin: 20, borderRadius: 15, maxHeight: "80%" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1976D2" },
+  sectionLabel: { fontSize: 12, fontWeight: "bold", color: "#777", marginTop: 10, marginLeft: 15 },
+  modalDivider: { marginVertical: 15 },
+  closeBtn: { marginTop: 20, borderRadius: 8 },
 });
 
 export default RekapAbsensi;
