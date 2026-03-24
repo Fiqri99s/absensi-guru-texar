@@ -29,22 +29,24 @@ const KelolaGuru = ({ navigation, isDarkMode }) => {
 
   const fetchTeachers = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("tabel_user").select("*").eq("role", "guru").order("full_name", { ascending: true });
-    if (data) {
-      setTeachers(data);
-      setFilteredTeachers(data);
+    try {
+      const { data, error } = await supabase.from("tabel_user").select("*").eq("role", "guru").order("full_name", { ascending: true });
+
+      if (error) throw error;
+
+      setTeachers(data || []);
+      setFilteredTeachers(data || []);
+    } catch (error) {
+      Alert.alert("Error", "Gagal mengambil data: " + error.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const onChangeSearch = (query) => {
     setSearchQuery(query);
     if (query) {
-      const filtered = teachers.filter((item) => {
-        const itemData = item.full_name ? item.full_name.toUpperCase() : "";
-        const textData = query.toUpperCase();
-        return itemData.indexOf(textData) > -1;
-      });
+      const filtered = teachers.filter((item) => item.full_name?.toUpperCase().includes(query.toUpperCase()));
       setFilteredTeachers(filtered);
     } else {
       setFilteredTeachers(teachers);
@@ -56,35 +58,50 @@ const KelolaGuru = ({ navigation, isDarkMode }) => {
       Alert.alert("Data Kosong", "Semua kolom harus diisi!");
       return;
     }
-    setLoading(true);
-    const payload = { full_name: fullName, username: username, password: password, role: "guru" };
-    let error;
-    if (idEdit) {
-      const { error: err } = await supabase.from("tabel_user").update(payload).eq("id", idEdit);
-      error = err;
-    } else {
-      const { error: err } = await supabase.from("tabel_user").insert([payload]);
-      error = err;
-    }
 
-    if (!error) {
+    setLoading(true);
+    const payload = { full_name: fullName, username, password, role: "guru" };
+
+    try {
+      let result;
+      if (idEdit) {
+        result = await supabase.from("tabel_user").update(payload).eq("id", idEdit);
+      } else {
+        result = await supabase.from("tabel_user").insert([payload]);
+      }
+
+      if (result.error) throw result.error;
+
       tutupModal();
       fetchTeachers();
-    } else {
-      Alert.alert("Gagal", error.message);
+    } catch (error) {
+      Alert.alert("Gagal Menyimpan", error.message);
+    } finally {
       setLoading(false);
     }
   };
 
+  // --- PERBAIKAN FUNGSI HAPUS ---
   const handleHapus = (id) => {
-    Alert.alert("Hapus Guru", "Apakah Anda yakin?", [
+    Alert.alert("Hapus Guru", "Data guru akan dihapus permanen. Lanjutkan?", [
       { text: "Batal", style: "cancel" },
       {
         text: "Hapus",
         style: "destructive",
         onPress: async () => {
-          await supabase.from("tabel_user").delete().eq("id", id);
-          fetchTeachers();
+          setLoading(true);
+          try {
+            const { error } = await supabase.from("tabel_user").delete().eq("id", id);
+
+            if (error) throw error;
+
+            // Refresh data secara lokal dan dari database
+            fetchTeachers();
+          } catch (error) {
+            Alert.alert("Gagal Hapus", error.message);
+          } finally {
+            setLoading(false);
+          }
         },
       },
     ]);
@@ -108,7 +125,6 @@ const KelolaGuru = ({ navigation, isDarkMode }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* HEADER */}
       <Surface style={[styles.header, { backgroundColor: surfaceColor }]} elevation={2}>
         <View style={styles.headerTop}>
           <IconButton icon="arrow-left" iconColor={isDarkMode ? "#FFF" : "#000"} onPress={() => navigation.goBack()} />
@@ -139,7 +155,7 @@ const KelolaGuru = ({ navigation, isDarkMode }) => {
           renderItem={({ item }) => (
             <Surface style={[styles.card, { backgroundColor: surfaceColor }]} elevation={1}>
               <View style={styles.cardContent}>
-                <Avatar.Text size={50} label={item.full_name.substring(0, 2).toUpperCase()} style={{ backgroundColor: isDarkMode ? "#333" : "#E3F2FD" }} color={primaryColor} />
+                <Avatar.Text size={50} label={item.full_name?.substring(0, 2).toUpperCase() || "G"} style={{ backgroundColor: isDarkMode ? "#333" : "#E3F2FD" }} color={primaryColor} />
 
                 <View style={styles.textSection}>
                   <Text style={[styles.txtNama, { color: textColor }]}>{item.full_name}</Text>
@@ -157,22 +173,21 @@ const KelolaGuru = ({ navigation, isDarkMode }) => {
         />
       )}
 
-      {/* MODAL TAMBAH/EDIT */}
       <Portal>
         <Modal visible={visible} onDismiss={tutupModal} contentContainerStyle={[styles.modal, { backgroundColor: surfaceColor }]}>
           <Text variant="headlineSmall" style={[styles.modalTitle, { color: isDarkMode ? "#FFF" : "#1A237E" }]}>
             {idEdit ? "Update Data Guru" : "Tambah Guru Baru"}
           </Text>
 
-          <TextInput label="Nama Lengkap" value={fullName} onChangeText={setFullName} mode="outlined" textColor={textColor} style={[styles.input, { backgroundColor: inputBg }]} activeOutlineColor={primaryColor} />
-          <TextInput label="Username" value={username} onChangeText={setUsername} mode="outlined" textColor={textColor} style={[styles.input, { backgroundColor: inputBg }]} autoCapitalize="none" activeOutlineColor={primaryColor} />
-          <TextInput label="Password" value={password} onChangeText={setPassword} mode="outlined" textColor={textColor} style={[styles.input, { backgroundColor: inputBg }]} secureTextEntry activeOutlineColor={primaryColor} />
+          <TextInput label="Nama Lengkap" value={fullName} onChangeText={setFullName} mode="outlined" textColor={textColor} style={styles.input} activeOutlineColor={primaryColor} />
+          <TextInput label="Username" value={username} onChangeText={setUsername} mode="outlined" textColor={textColor} style={styles.input} autoCapitalize="none" activeOutlineColor={primaryColor} />
+          <TextInput label="Password" value={password} onChangeText={setPassword} mode="outlined" textColor={textColor} style={styles.input} secureTextEntry activeOutlineColor={primaryColor} />
 
           <View style={styles.modalButtons}>
             <Button mode="outlined" onPress={tutupModal} textColor={isDarkMode ? "#BBB" : primaryColor} style={{ flex: 1, marginRight: 10 }}>
               Batal
             </Button>
-            <Button mode="contained" onPress={handleSimpan} style={{ flex: 1, backgroundColor: primaryColor }}>
+            <Button mode="contained" onPress={handleSimpan} loading={loading} style={{ flex: 1, backgroundColor: primaryColor }}>
               Simpan
             </Button>
           </View>
@@ -195,18 +210,13 @@ const styles = StyleSheet.create({
   },
   headerTop: { flexDirection: "row", alignItems: "center" },
   headerTitle: { fontWeight: "bold" },
-  searchBar: {
-    marginHorizontal: 15,
-    marginTop: 10,
-    borderRadius: 12,
-    height: 45,
-  },
-  card: { borderRadius: 20, marginBottom: 12, overflow: "hidden" },
+  searchBar: { marginHorizontal: 15, marginTop: 10, borderRadius: 12, height: 45 },
+  card: { borderRadius: 20, marginBottom: 12 },
   cardContent: { flexDirection: "row", alignItems: "center", paddingVertical: 15, paddingHorizontal: 18 },
   textSection: { flex: 1, paddingLeft: 15, justifyContent: "center" },
-  txtNama: { fontSize: 16, fontWeight: "700", letterSpacing: 0.5, textTransform: "capitalize" },
-  txtUsername: { fontSize: 12, fontWeight: "400", marginTop: 2 },
-  actionButtons: { flexDirection: "row", alignItems: "center" },
+  txtNama: { fontSize: 16, fontWeight: "700", textTransform: "capitalize" },
+  txtUsername: { fontSize: 12, marginTop: 2 },
+  actionButtons: { flexDirection: "row" },
   fab: { position: "absolute", margin: 16, right: 0, bottom: 0, borderRadius: 15 },
   modal: { padding: 25, margin: 20, borderRadius: 25 },
   modalTitle: { marginBottom: 20, fontWeight: "bold" },
