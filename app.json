@@ -24,8 +24,21 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "config": {
+        "pwa": {
+          "display": "standalone",
+          "orientation": "portrait",
+          "background_color": "#ffffff",
+          "theme_color": "#E6F4FE",
+          "manifest": {
+            "short_name": "Absensi",
+            "description": "Sistem Absensi Guru SMK Texar"
+          }
+        }
+      }
     },
-    "plugins": ["expo-sharing"]
+    "plugins": ["expo-sharing", "expo-build-properties"]
   }
 }
